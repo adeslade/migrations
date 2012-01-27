@@ -79,18 +79,23 @@ abstract class AbstractCommand extends Command
                 return $output->writeln($message);
             });
 
-            if ($this->getApplication()->getHelperSet()->has('db')) {
-                $conn = $this->getHelper('db')->getConnection();
-            } else if($input->getOption('db-configuration')) {
+            if($input->getOption('db-configuration')) {
                 if (!file_exists($input->getOption('db-configuration'))) {
                     throw new \InvalidArgumentException("The specified connection file is not a valid file.");
                 }
 
                 $params = include($input->getOption('db-configuration'));
-                if (!is_array($params)) {
+                if (!is_array($params) && !$params instanceof \Doctrine\DBAL\Connection) {
                     throw new \InvalidArgumentException('The connection file has to return an array with database configuration parameters.');
                 }
-                $conn = \Doctrine\DBAL\DriverManager::getConnection($params);
+
+				if (is_array($params)) {
+					$conn = \Doctrine\DBAL\DriverManager::getConnection($params);
+				} else if ($params instanceof \Doctrine\DBAL\Connection){
+					$conn = $params;
+				}
+			} else if ($this->getApplication()->getHelperSet()->has('db')) {
+                $conn = $this->getHelper('db')->getConnection();
             } else if (file_exists('migrations-db.php')) {
                 $params = include("migrations-db.php");
                 if (!is_array($params)) {
